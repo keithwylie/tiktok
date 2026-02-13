@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Research Study</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+
+        /* Access Code Screen */
+        .access-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #000;
+            color: #fff;
+        }
+
+        .access-container {
+            background-color: #1a1a1a;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .access-container h1 {
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .access-container p {
+            margin-bottom: 30px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .access-container input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .access-container input:focus {
+            outline: none;
+            border-color: #fe2c55;
+        }
+
+        .error-message {
+            color: #ff4444;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .access-button {
+            width: 100%;
+            padding: 12px;
+            background-color: #fe2c55;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .access-button:hover {
+            background-color: #e02849;
+        }
+
+        /* Video App */
+        .video-container {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .video-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .video-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .video-slide {
+            height: 100vh;
+            width: 100vw;
+            scroll-snap-align: start;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-slide video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+
+        .video-overlay p {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .swipe-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            text-align: center;
+            animation: bounce 2s infinite;
+        }
+
+        .swipe-hint-icon {
+            font-size: 30px;
+        }
+
+        .swipe-hint-text {
+            font-size: 12px;
+        }
+
+        @keyframes bounce {
+            0%, 100% { 
+                transform: translateX(-50%) translateY(0); 
+            }
+            50% { 
+                transform: translateX(-50%) translateY(-10px); 
+            }
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Access Code Screen -->
+    <div id="accessScreen" class="access-screen">
+        <div class="access-container">
+            <h1>Research Study Access</h1>
+            <p>Enter your access code to begin</p>
+            <form id="accessForm">
+                <input 
+                    type="text" 
+                    id="accessCodeInput" 
+                    placeholder="Access Code"
+                    autocomplete="off"
+                >
+                <p id="errorMessage" class="error-message hidden"></p>
+                <button type="submit" class="access-button">Enter Study</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Video App -->
+    <div id="videoApp" class="hidden">
+        <div id="videoContainer" class="video-container">
+            <!-- Videos will be inserted here by JavaScript -->
+        </div>
+        <div id="progressIndicator" class="progress-indicator">
+            1 / 1
+        </div>
+    </div>
+
+    <script>
+        // ==================== CONFIGURATION ====================
+        // Edit these settings to customize your study
+        
+        const CONFIG = {
+            // Change this to your desired access code
+            ACCESS_CODE: "STUDY2025",
+            
+            // Experimental condition videos
+            CONDITION_A_VIDEO: "videos/condition-a.mp4",
+            CONDITION_B_VIDEO: "videos/condition-b.mp4",
+            
+            // Common videos shown to all participants (in order)
+            COMMON_VIDEOS: [
+                { id: 1, src: "videos/intro.mp4", title: "Introduction" },
+                { id: 2, src: "videos/video1.mp4", title: "Video 1" },
+                // Experimental video will be inserted at position 2 (index 2)
+                { id: 3, src: "videos/video2.mp4", title: "Video 2" },
+                { id: 4, src: "videos/outro.mp4", title: "Conclusion" }
+            ],
+            
+            // Position where experimental video should be inserted (0 = first, 1 = second, etc.)
+            EXPERIMENTAL_VIDEO_POSITION: 2
+        };
+        
+        // ==================== APPLICATION CODE ====================
+        
+        let currentVideoIndex = 0;
+        let assignedCondition = null;
+        let videos = [];
+        let videoElements = [];
+
+        // Access code form handling
+        document.getElementById('accessForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const inputCode = document.getElementById('accessCodeInput').value;
+            const errorMessage = document.getElementById('errorMessage');
+            
+            if (inputCode.toUpperCase() === CONFIG.ACCESS_CODE.toUpperCase()) {
+                errorMessage.classList.add('hidden');
+                initializeStudy();
+            } else {
+                errorMessage.textContent = 'Invalid access code. Please contact the researcher.';
+                errorMessage.classList.remove('hidden');
+            }
+        });
+
+        function initializeStudy() {
+            // Hide access screen, show video app
+            document.getElementById('accessScreen').classList.add('hidden');
+            document.getElementById('videoApp').classList.remove('hidden');
+            
+            // Random assignment to condition A or B
+            assignedCondition = Math.random() < 0.5 ? 'A' : 'B';
+            
+            // Log assignment (you can send this to your data collection system)
+            console.log('=== PARTICIPANT DATA ===');
+            console.log('Condition:', assignedCondition);
+            console.log('Timestamp:', new Date().toISOString());
+            console.log('User Agent:', navigator.userAgent);
+            console.log('========================');
+            
+            // Build video list with experimental video inserted
+            const experimentalVideo = {
+                id: 'experimental',
+                src: assignedCondition === 'A' ? CONFIG.CONDITION_A_VIDEO : CONFIG.CONDITION_B_VIDEO,
+                title: `Condition ${assignedCondition}`
+            };
+            
+            videos = [
+                ...CONFIG.COMMON_VIDEOS.slice(0, CONFIG.EXPERIMENTAL_VIDEO_POSITION),
+                experimentalVideo,
+                ...CONFIG.COMMON_VIDEOS.slice(CONFIG.EXPERIMENTAL_VIDEO_POSITION)
+            ];
+            
+            // Create video elements
+            createVideoElements();
+            
+            // Setup scroll handling
+            setupScrollHandler();
+            
+            // Play first video
+            if (videoElements[0]) {
+                videoElements[0].play().catch(e => console.log('Autoplay prevented:', e));
+            }
+        }
+
+        function createVideoElements() {
+            const container = document.getElementById('videoContainer');
+            
+            videos.forEach((video, index) => {
+                // Create slide container
+                const slide = document.createElement('div');
+                slide.className = 'video-slide';
+                
+                // Create video element
+                const videoEl = document.createElement('video');
+                videoEl.src = video.src;
+                videoEl.loop = true;
+                videoEl.playsInline = true;
+                videoEl.muted = false;
+                videoElements.push(videoEl);
+                
+                // Create overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'video-overlay';
+                overlay.innerHTML = `<p>Video ${index + 1} of ${videos.length}</p>`;
+                
+                // Add swipe hint to first video
+                if (index === 0) {
+                    const hint = document.createElement('div');
+                    hint.className = 'swipe-hint';
+                    hint.innerHTML = `
+                        <div class="swipe-hint-icon">↓</div>
+                        <div class="swipe-hint-text">Swipe up to continue</div>
+                    `;
+                    slide.appendChild(hint);
+                }
+                
+                slide.appendChild(videoEl);
+                slide.appendChild(overlay);
+                container.appendChild(slide);
+            });
+            
+            updateProgressIndicator();
+        }
+
+        function setupScrollHandler() {
+            const container = document.getElementById('videoContainer');
+            
+            container.addEventListener('scroll', function() {
+                const scrollPosition = container.scrollTop;
+                const videoHeight = window.innerHeight;
+                const newIndex = Math.round(scrollPosition / videoHeight);
+                
+                if (newIndex !== currentVideoIndex && newIndex >= 0 && newIndex < videos.length) {
+                    currentVideoIndex = newIndex;
+                    updateProgressIndicator();
+                    
+                    // Pause all videos except current one
+                    videoElements.forEach((video, idx) => {
+                        if (idx === newIndex) {
+                            video.play().catch(e => console.log('Autoplay prevented:', e));
+                        } else {
+                            video.pause();
+                        }
+                    });
+                    
+                    // Log video view
+                    console.log('Video viewed:', videos[newIndex].title, 'at', new Date().toISOString());
+                }
+            });
+        }
+
+        function updateProgressIndicator() {
+            const indicator = document.getElementById('progressIndicator');
+            indicator.textContent = `${currentVideoIndex + 1} / ${videos.length}`;
+        }
+    </script>
+</body>
+</html>
