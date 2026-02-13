@@ -214,23 +214,24 @@
         // Edit these settings to customize your study
         
         const CONFIG = {
-            // Change this to your desired access code
-            ACCESS_CODE: "STUDY2025",
+            // Access codes for different conditions
+            CONTROL_CODE: "version2",      // Control group
+            EXPERIMENTAL_CODE: "version3",  // Experimental group
             
-            // Experimental condition videos
-            CONDITION_A_VIDEO: "videos/condition-a.mp4",
-            CONDITION_B_VIDEO: "videos/condition-b.mp4",
+            // Condition-specific videos (shown at position 2)
+            CONTROL_VIDEO: "videos/control.mp4",           // Control condition video
+            EXPERIMENTAL_VIDEO: "videos/experimental.mp4", // Experimental condition video
             
             // Common videos shown to all participants (in order)
             COMMON_VIDEOS: [
                 { id: 1, src: "videos/video1.mp4", title: "Video 1" },
                 { id: 2, src: "videos/video2.mp4", title: "Video 2" },
-                // Experimental video will be inserted at position 2 (index 2)
+                // Condition video (control or experimental) will be inserted here
                 { id: 3, src: "videos/video3.mp4", title: "Video 3" },
             ],
             
-            // Position where experimental video should be inserted (0 = first, 1 = second, etc.)
-            EXPERIMENTAL_VIDEO_POSITION: 2
+            // Position where condition video should be inserted (0 = first, 1 = second, etc.)
+            CONDITION_VIDEO_POSITION: 2
         };
         
         // ==================== APPLICATION CODE ====================
@@ -243,11 +244,17 @@
         // Access code form handling
         document.getElementById('accessForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const inputCode = document.getElementById('accessCodeInput').value;
+            const inputCode = document.getElementById('accessCodeInput').value.toUpperCase();
             const errorMessage = document.getElementById('errorMessage');
             
-            if (inputCode.toUpperCase() === CONFIG.ACCESS_CODE.toUpperCase()) {
+            // Check which condition based on access code
+            if (inputCode === CONFIG.CONTROL_CODE.toUpperCase()) {
                 errorMessage.classList.add('hidden');
+                assignedCondition = 'CONTROL';
+                initializeStudy();
+            } else if (inputCode === CONFIG.EXPERIMENTAL_CODE.toUpperCase()) {
+                errorMessage.classList.add('hidden');
+                assignedCondition = 'EXPERIMENTAL';
                 initializeStudy();
             } else {
                 errorMessage.textContent = 'Invalid access code. Please contact the researcher.';
@@ -260,27 +267,30 @@
             document.getElementById('accessScreen').classList.add('hidden');
             document.getElementById('videoApp').classList.remove('hidden');
             
-            // Random assignment to condition A or B
-            assignedCondition = Math.random() < 0.5 ? 'A' : 'B';
-            
-            // Log assignment (you can send this to your data collection system)
+            // Log assignment for data collection
             console.log('=== PARTICIPANT DATA ===');
             console.log('Condition:', assignedCondition);
             console.log('Timestamp:', new Date().toISOString());
             console.log('User Agent:', navigator.userAgent);
             console.log('========================');
             
-            // Build video list with experimental video inserted
-            const experimentalVideo = {
-                id: 'experimental',
-                src: assignedCondition === 'A' ? CONFIG.CONDITION_A_VIDEO : CONFIG.CONDITION_B_VIDEO,
-                title: `Condition ${assignedCondition}`
+            // Send condition to parent Qualtrics page (if embedded)
+            if (window.parent && window.parent.Qualtrics) {
+                window.parent.Qualtrics.SurveyEngine.setEmbeddedData('video_condition', assignedCondition);
+            }
+            
+            // Determine which condition video to show
+            const conditionVideo = {
+                id: 'condition',
+                src: assignedCondition === 'CONTROL' ? CONFIG.CONTROL_VIDEO : CONFIG.EXPERIMENTAL_VIDEO,
+                title: assignedCondition === 'CONTROL' ? 'Control Video' : 'Experimental Video'
             };
             
+            // Build video list with condition video inserted at specified position
             videos = [
-                ...CONFIG.COMMON_VIDEOS.slice(0, CONFIG.EXPERIMENTAL_VIDEO_POSITION),
-                experimentalVideo,
-                ...CONFIG.COMMON_VIDEOS.slice(CONFIG.EXPERIMENTAL_VIDEO_POSITION)
+                ...CONFIG.COMMON_VIDEOS.slice(0, CONFIG.CONDITION_VIDEO_POSITION),
+                conditionVideo,
+                ...CONFIG.COMMON_VIDEOS.slice(CONFIG.CONDITION_VIDEO_POSITION)
             ];
             
             // Create video elements
