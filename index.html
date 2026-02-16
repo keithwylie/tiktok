@@ -226,16 +226,21 @@
             COMMON_VIDEOS: [
                 { id: 1, src: "videos/video1.mp4", title: "Video 1" },
                 { id: 2, src: "videos/video2.mp4", title: "Video 2" },
-                // Condition video (control or experimental) will be inserted here
                 { id: 3, src: "videos/video3.mp4", title: "Video 3" },
                 { id: 4, src: "videos/video4.mp4", title: "Video 4" },
                 { id: 5, src: "videos/video5.mp4", title: "Video 5" },
                 { id: 6, src: "videos/video6.mp4", title: "Video 6" },
                 { id: 7, src: "videos/video7.mp4", title: "Video 7" },
+                { id: 8, src: "videos/video8.mp4", title: "Video 8" },
+                // Condition video (control or experimental) will be inserted here (3/4 through)
+                { id: 9, src: "videos/video10.mp4", title: "Video 9" },
+                { id: 10, src: "videos/video11.mp4", title: "Video 10" },
+                { id: 11, src: "videos/video12.mp4", title: "Video 11" },
             ],
             
             // Position where condition video should be inserted (0 = first, 1 = second, etc.)
-            CONDITION_VIDEO_POSITION: 4
+            // Position 8 = after video8, which is 3/4 of the way through 12 videos
+            CONDITION_VIDEO_POSITION: 8
         };
         
         // ==================== APPLICATION CODE ====================
@@ -244,6 +249,7 @@
         let assignedCondition = null;
         let videos = [];
         let videoElements = [];
+        let videoWatchProgress = []; // Track which videos have been watched to 50%
 
         // Access code form handling
         document.getElementById('accessForm').addEventListener('submit', function(e) {
@@ -313,6 +319,9 @@
             const container = document.getElementById('videoContainer');
             
             videos.forEach((video, index) => {
+                // Initialize watch progress tracker
+                videoWatchProgress[index] = false;
+                
                 // Create slide container
                 const slide = document.createElement('div');
                 slide.className = 'video-slide';
@@ -324,6 +333,13 @@
                 videoEl.playsInline = true;
                 videoEl.muted = false;
                 videoElements.push(videoEl);
+                
+                // Track video progress - mark as watched when 50% complete
+                videoEl.addEventListener('timeupdate', function() {
+                    if (this.duration && this.currentTime / this.duration >= 0.5) {
+                        videoWatchProgress[index] = true;
+                    }
+                });
                 
                 // Create overlay
                 const overlay = document.createElement('div');
@@ -356,6 +372,16 @@
                 const scrollPosition = container.scrollTop;
                 const videoHeight = window.innerHeight;
                 const newIndex = Math.round(scrollPosition / videoHeight);
+                
+                // Prevent scrolling to next video if current video hasn't been watched to 50%
+                if (newIndex > currentVideoIndex && !videoWatchProgress[currentVideoIndex]) {
+                    // Snap back to current video
+                    container.scrollTo({
+                        top: currentVideoIndex * videoHeight,
+                        behavior: 'smooth'
+                    });
+                    return;
+                }
                 
                 if (newIndex !== currentVideoIndex && newIndex >= 0 && newIndex < videos.length) {
                     currentVideoIndex = newIndex;
