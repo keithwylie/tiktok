@@ -178,6 +178,80 @@
         .hidden {
             display: none;
         }
+
+        /* Video Progress Display */
+        .video-progress-container {
+            position: absolute;
+            bottom: 120px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .video-time {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: #fe2c55;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .scroll-locked-hint {
+            position: absolute;
+            bottom: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(254, 44, 85, 0.9);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .scroll-locked-hint.show {
+            opacity: 1;
+        }
+
+        .can-scroll-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4CAF50;
+            text-align: center;
+            animation: pulse 1.5s infinite;
+            z-index: 10;
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 1;
+                transform: translateX(-50%) scale(1);
+            }
+            50% { 
+                opacity: 0.6;
+                transform: translateX(-50%) scale(1.1);
+            }
+        }
     </style>
 </head>
 <body>
@@ -250,6 +324,8 @@
         let videos = [];
         let videoElements = [];
         let videoWatchProgress = []; // Track which videos have been watched to 50%
+        let scrollLocked = false;
+        let scrollHintTimeout = null;
 
         // Access code form handling
         document.getElementById('accessForm').addEventListener('submit', function(e) {
@@ -325,6 +401,7 @@
                 // Create slide container
                 const slide = document.createElement('div');
                 slide.className = 'video-slide';
+                slide.id = `slide-${index}`;
                 
                 // Create video element
                 const videoEl = document.createElement('video');
@@ -332,12 +409,68 @@
                 videoEl.loop = true;
                 videoEl.playsInline = true;
                 videoEl.muted = false;
+                videoEl.controls = false; // No player controls
                 videoElements.push(videoEl);
                 
-                // Track video progress - mark as watched when 50% complete
+                // Create progress display container
+                const progressContainer = document.createElement('div');
+                progressContainer.className = 'video-progress-container';
+                progressContainer.id = `progress-${index}`;
+                
+                // Time display
+                const timeDisplay = document.createElement('div');
+                timeDisplay.className = 'video-time';
+                timeDisplay.textContent = '0:00 / 0:00';
+                
+                // Progress bar
+                const progressBarContainer = document.createElement('div');
+                progressBarContainer.className = 'progress-bar-container';
+                const progressBarFill = document.createElement('div');
+                progressBarFill.className = 'progress-bar-fill';
+                progressBarContainer.appendChild(progressBarFill);
+                
+                progressContainer.appendChild(timeDisplay);
+                progressContainer.appendChild(progressBarContainer);
+                
+                // Create scroll locked hint
+                const scrollLockedHint = document.createElement('div');
+                scrollLockedHint.className = 'scroll-locked-hint';
+                scrollLockedHint.id = `locked-hint-${index}`;
+                scrollLockedHint.textContent = 'Watch 50% to continue';
+                
+                // Create can scroll hint (appears at 50%)
+                const canScrollHint = document.createElement('div');
+                canScrollHint.className = 'can-scroll-hint hidden';
+                canScrollHint.id = `can-scroll-${index}`;
+                canScrollHint.innerHTML = `
+                    <div class="swipe-hint-icon">↓</div>
+                    <div class="swipe-hint-text">Swipe up to continue</div>
+                `;
+                
+                // Track video progress
                 videoEl.addEventListener('timeupdate', function() {
-                    if (this.duration && this.currentTime / this.duration >= 0.5) {
+                    if (!this.duration) return;
+                    
+                    const progress = this.currentTime / this.duration;
+                    const currentTime = formatTime(this.currentTime);
+                    const totalTime = formatTime(this.duration);
+                    
+                    // Update time display
+                    timeDisplay.textContent = `${currentTime} / ${totalTime}`;
+                    
+                    // Update progress bar
+                    progressBarFill.style.width = `${progress * 100}%`;
+                    
+                    // Mark as watched when 50% complete
+                    if (progress >= 0.5 && !videoWatchProgress[index]) {
                         videoWatchProgress[index] = true;
+                        // Show can scroll hint
+                        if (index === currentVideoIndex) {
+                            canScrollHint.classList.remove('hidden');
+                            setTimeout(() => {
+                                canScrollHint.classList.add('hidden');
+                            }, 3000);
+                        }
                     }
                 });
                 
@@ -359,29 +492,73 @@
                 
                 slide.appendChild(videoEl);
                 slide.appendChild(overlay);
+                slide.appendChild(progressContainer);
+                slide.appendChild(scrollLockedHint);
+                slide.appendChild(canScrollHint);
                 container.appendChild(slide);
             });
             
             updateProgressIndicator();
         }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
 
         function setupScrollHandler() {
             const container = document.getElementById('videoContainer');
+            let lastValidScrollTop = 0;
             
+            // Prevent touch scrolling when video not 50% watched
+            container.addEventListener('touchstart', function(e) {
+                if (!videoWatchProgress[currentVideoIndex]) {
+                    const touch = e.touches[0];
+                    const startY = touch.clientY;
+                    
+                    const moveHandler = function(e) {
+                        const touch = e.touches[0];
+                        const deltaY = touch.clientY - startY;
+                        
+                        // Prevent upward swipe (scrolling to next video)
+                        if (deltaY < -10) {
+                            e.preventDefault();
+                            showLockedHint();
+                        }
+                    };
+                    
+                    const endHandler = function() {
+                        container.removeEventListener('touchmove', moveHandler);
+                        container.removeEventListener('touchend', endHandler);
+                    };
+                    
+                    container.addEventListener('touchmove', moveHandler, { passive: false });
+                    container.addEventListener('touchend', endHandler);
+                }
+            }, { passive: true });
+            
+            // Prevent wheel scrolling when video not 50% watched
+            container.addEventListener('wheel', function(e) {
+                if (!videoWatchProgress[currentVideoIndex] && e.deltaY > 0) {
+                    e.preventDefault();
+                    showLockedHint();
+                }
+            }, { passive: false });
+            
+            // Track scroll position changes
             container.addEventListener('scroll', function() {
                 const scrollPosition = container.scrollTop;
                 const videoHeight = window.innerHeight;
                 const newIndex = Math.round(scrollPosition / videoHeight);
                 
-                // Prevent scrolling to next video if current video hasn't been watched to 50%
+                // If scrolled to new video but not allowed, scroll back
                 if (newIndex > currentVideoIndex && !videoWatchProgress[currentVideoIndex]) {
-                    // Snap back to current video
-                    container.scrollTo({
-                        top: currentVideoIndex * videoHeight,
-                        behavior: 'smooth'
-                    });
+                    container.scrollTop = lastValidScrollTop;
                     return;
                 }
+                
+                lastValidScrollTop = scrollPosition;
                 
                 if (newIndex !== currentVideoIndex && newIndex >= 0 && newIndex < videos.length) {
                     currentVideoIndex = newIndex;
@@ -400,6 +577,17 @@
                     console.log('Video viewed:', videos[newIndex].title, 'at', new Date().toISOString());
                 }
             });
+        }
+        
+        function showLockedHint() {
+            const lockedHint = document.getElementById(`locked-hint-${currentVideoIndex}`);
+            if (lockedHint) {
+                lockedHint.classList.add('show');
+                clearTimeout(scrollHintTimeout);
+                scrollHintTimeout = setTimeout(() => {
+                    lockedHint.classList.remove('show');
+                }, 2000);
+            }
         }
 
         function updateProgressIndicator() {
