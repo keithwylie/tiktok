@@ -360,11 +360,6 @@
             console.log('User Agent:', navigator.userAgent);
             console.log('========================');
             
-            // Send condition to parent Qualtrics page (if embedded)
-            if (window.parent && window.parent.Qualtrics) {
-                window.parent.Qualtrics.SurveyEngine.setEmbeddedData('video_condition', assignedCondition);
-            }
-            
             // Determine which condition video to show
             const conditionVideo = {
                 id: 'condition',
